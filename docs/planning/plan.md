@@ -126,9 +126,41 @@ Each milestone = one branch = one PR. Merge to `main` only when green and the mi
 
 ## Verification Plan
 
-- **Per-milestone:** unit tests where applicable (M2 round-trip, M3 catalog validity, M9 prop serialization). Manual smoke of the new surface on every PR.
-- **End-to-end:** the scripted login demo is the ultimate acceptance test. It's exercised at M9 (first full run) and M10 (polished run).
-- **Export correctness:** exported file is compiled in a separate sandbox app against installed `@david-richard/ds-blossom`. This is non-negotiable — it's the thesis.
+All verification is automated. No manual smoke testing.
+
+**Tooling (added in M1):**
+- **Vitest** + `@testing-library/react` + jsdom — unit/integration tests
+- **Playwright** — end-to-end tests (enabled from M5 onward)
+- **GitHub Actions** — runs `build`, `lint`, `test`, `test:e2e` on every PR; PRs do not merge unless green
+
+**Per-milestone:**
+- M2: unit test — `JSON.stringify/parse` round-trip preserves tree; mutation API purity
+- M3: unit test — every catalog entry's `defaultProps` validates against its `propSchema`
+- M5: E2E — seeded tree renders; intentional error shows boundary; canvas survives
+- M6: E2E — drag panel item onto canvas; drag to reorder; drag to nest
+- M7: E2E — select node, change enum prop, live update in canvas
+- M8: E2E — create composition, edit, reload, state persists
+- M9: unit test — serialized output matches golden fixture; imports correctly computed. Plus: **external compile test** — exported `.tsx` is compiled in a tiny sandbox fixture repo with installed DS; compile failure fails the PR.
+- M10: E2E — full login demo script runs end-to-end
+
+**Export correctness is the thesis.** The external-compile test at M9 is non-negotiable.
+
+## Merge Policy (for this project)
+
+- **Auto-merge when green** for mechanical milestones: M1, M3, M4, M5, M6, M7, M8.
+- **User review required** before merge for thesis-critical milestones: **M2** (load-bearing state module), **M9** (export), **M10** (demo polish).
+- All PRs: self-review as Security + Regression Reviewer before marking ready.
+
+## Pre-Approved Dependencies
+
+The following deps may be added without per-PR permission (per `WORKFLOW.md` batched permissions):
+
+- `@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/utilities`
+- `immer`, `nanoid`
+- `prettier` (runtime), `prettier` standalone + ts parser
+- Dev: `vitest`, `@testing-library/react`, `jsdom`, `@playwright/test`
+
+Any other new dep → stop and ask.
 
 ---
 
@@ -144,10 +176,10 @@ Per `product.md`: AI, Tier 3 components, fidelity modes, dark mode, undo/redo, m
 
 ---
 
-## Open Items Before Starting M1
+## Resolved Items
 
-1. **Naming:** is `design-canvas` the product name we use in UI copy? (vs. a tagline like "Blossom Canvas")
-2. **Deploy target for demo:** local `vite dev` is fine for the POC demo — or do we want a Vercel deploy as part of M10?
-3. **Component catalog curation:** should I draft the Tier 1+2 list as part of M3, or deliver it for your review before M3 starts?
-
-Once these are answered, I start M1.
+- **Product name in UI:** "Design Canvas"
+- **Deploy target:** localhost only for POC; user will wire Vercel via Git post-merge
+- **Catalog curation:** AI judgment; no pre-review required
+- **Merge policy:** auto-merge on green for M1/M3/M4/M5/M6/M7/M8; user review for M2/M9/M10
+- **E2E tool:** Playwright from M5
