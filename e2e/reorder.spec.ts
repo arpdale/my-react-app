@@ -1,8 +1,5 @@
 import { test, expect, type Page, type Locator } from '@playwright/test'
 
-/**
- * Regular drag-and-drop (source → target resolved upfront).
- */
 async function dragFromTo(page: Page, source: Locator, target: Locator) {
   const srcBox = await source.boundingBox()
   const tgtBox = await target.boundingBox()
@@ -21,45 +18,28 @@ async function dragFromTo(page: Page, source: Locator, target: Locator) {
 }
 
 /**
- * Drag to a gap. Gap drop zones only render while a drag is active,
- * so we start the drag first, then query the gap's position, then
- * move to it and release.
+ * Drag source to a named gap. Gaps are always in the DOM (collapsed to
+ * zero size when idle), so their y-position is resolvable upfront — no
+ * need to pause mid-drag. This keeps the sequence as a single continuous
+ * mouse gesture, which CI handles reliably.
  */
-async function dragToGap(
-  page: Page,
-  source: Locator,
-  gapTestId: string
-) {
+async function dragToGap(page: Page, source: Locator, gapTestId: string) {
   const srcBox = await source.boundingBox()
-  if (!srcBox) throw new Error('source not visible')
+  const gapBox = await page.getByTestId(gapTestId).boundingBox()
+  if (!srcBox || !gapBox) throw new Error('source or gap not locatable')
+
   const sx = srcBox.x + srcBox.width / 2
   const sy = srcBox.y + srcBox.height / 2
-
-  await page.mouse.move(sx, sy)
-  await page.mouse.down()
-  // Poke past the 4px activation distance with several intermediate
-  // moves — headless Chromium in CI drops some move events if they come
-  // too close together, so we pace them out.
-  for (let i = 1; i <= 6; i++) {
-    await page.mouse.move(sx + i * 6, sy + i * 6)
-    await page.waitForTimeout(20)
-  }
-  // Let React commit the useDndContext state update so gap drop zones
-  // mount in the DOM.
-  await page.waitForTimeout(250)
-
-  const gap = page.getByTestId(gapTestId)
-  await gap.waitFor({ state: 'attached', timeout: 10_000 })
-  const gapBox = await gap.boundingBox()
-  if (!gapBox) throw new Error(`gap ${gapTestId} not visible during drag`)
   const gx = gapBox.x + gapBox.width / 2
   const gy = gapBox.y + gapBox.height / 2
 
-  await page.mouse.move(gx, gy, { steps: 20 })
-  await page.waitForTimeout(80)
+  await page.mouse.move(sx, sy)
+  await page.mouse.down()
+  await page.mouse.move(sx + 10, sy + 10, { steps: 5 })
+  await page.mouse.move(gx, gy, { steps: 15 })
   await page.mouse.up()
   await page.mouse.move(0, 0)
-  await page.waitForTimeout(150)
+  await page.waitForTimeout(50)
 }
 
 async function startFresh(page: Page) {
@@ -99,9 +79,6 @@ test.describe('reorder + insertion indicators', () => {
     await addButton(page, 'Third')
     expect(await buttonOrder(page)).toEqual(['First', 'Second', 'Third'])
 
-    // Drop a Separator at gap index 1 — should land between First and Second.
-    // (Using Separator because it's in the Layout group near the top of the
-    // panel so no scrolling is required.)
     await dragToGap(
       page,
       page.getByTestId('panel-item-Separator'),
@@ -110,10 +87,8 @@ test.describe('reorder + insertion indicators', () => {
 
     const separator = canvasPane(page).locator('[data-node-type="Separator"]')
     await expect(separator).toHaveCount(1)
-
     expect(await buttonOrder(page)).toEqual(['First', 'Second', 'Third'])
 
-    // DOM order: First Button, Separator, Second Button, Third Button.
     const types = await canvasPane(page)
       .locator('[data-node-type]')
       .evaluateAll((els: HTMLElement[]) =>
@@ -121,7 +96,6 @@ test.describe('reorder + insertion indicators', () => {
       )
     const sepIdx = types.indexOf('Separator')
     expect(sepIdx).toBeGreaterThan(0)
-    // Exactly one Button appears before the Separator.
     expect(types.slice(0, sepIdx).filter((t) => t === 'Button')).toHaveLength(1)
   })
 
@@ -150,7 +124,6 @@ test.describe('reorder + insertion indicators', () => {
     await addButton(page, 'B')
     await addButton(page, 'C')
 
-    // Drag B to gap index 3 (after C).
     const bWrapper = canvasPane(page)
       .locator('[data-node-type="Button"]')
       .filter({ hasText: 'B' })

@@ -11,11 +11,11 @@ interface GapDropZoneProps {
 }
 
 /**
- * Sits between sibling RenderNodes. Invisible when idle. During a drag,
- * expands into a targetable slot and shows a blue insertion bar when
- * hovered — the classic Figma/Subframe indicator for "this is where
- * it'll land." Only mounts while a drag is active; the canvas stays
- * visually uncluttered at rest.
+ * Sits between sibling RenderNodes. Always occupies the same amount of
+ * layout space (natural sibling spacing) so nothing shifts when a drag
+ * starts — that way a test or user can target a gap by its at-rest
+ * position. Visible affordance only appears when the pointer is over it
+ * during a drag (the classic Figma/Subframe blue insertion bar).
  */
 export function GapDropZone({ parentId, index, flow }: GapDropZoneProps) {
   const { active } = useDndContext()
@@ -26,13 +26,10 @@ export function GapDropZone({ parentId, index, flow }: GapDropZoneProps) {
     disabled: !dragging,
   })
 
-  if (!dragging) return null
-
   const isRow = flow === 'row'
 
-  // Keep gap regions generous enough for reliable targeting — 12px in the
-  // minor axis, full extent in the major axis. The visible bar is smaller,
-  // but the droppable hit area is the whole strip.
+  // Constant layout size → no drag-start shift. 12px is a natural gutter
+  // between flex siblings and a comfortable drop target.
   const hitArea = isRow ? 'w-3 self-stretch' : 'h-3 w-full'
   const alignment = 'flex items-center justify-center'
 
@@ -47,6 +44,7 @@ export function GapDropZone({ parentId, index, flow }: GapDropZoneProps) {
       ref={setNodeRef}
       data-testid={`gap-${parentId ?? 'root'}-${index}`}
       data-gap-index={index}
+      data-dragging={dragging ? 'true' : 'false'}
       className={`shrink-0 ${hitArea} ${alignment}`}
     >
       <div className={bar} />
