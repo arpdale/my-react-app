@@ -1,6 +1,7 @@
 import {
   DndContext,
   DragOverlay,
+  MouseSensor,
   PointerSensor,
   useSensor,
   useSensors,
@@ -39,7 +40,12 @@ export function CanvasDndContext({ children }: CanvasDndContextProps) {
     useCanvas()
   const [activeDrag, setActiveDrag] = useState<ActiveDrag>(null)
 
+  // MouseSensor first so Playwright's page.mouse.* (which dispatches mouse
+  // events) activates reliably in headless CI — Chromium's mouse→pointer
+  // translation has timing quirks that don't match local dev. PointerSensor
+  // is retained for touch / stylus devices in real usage.
   const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 4 } }),
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } })
   )
 
