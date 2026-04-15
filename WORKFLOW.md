@@ -105,6 +105,31 @@ Permission requests must be **batched into a single message** and include:
 
 ---
 
+## Verification Must Be Automated
+
+"Manual smoke test" is not an acceptable Definition-of-Done signal. Every milestone's DoD must be backed by one or more automated checks that run in CI:
+
+- `npm run build` — TypeScript + Vite compile
+- `npm run lint`
+- `npm run test` — unit / integration (Vitest)
+- `npm run test:e2e` — end-to-end (Playwright) for interaction flows
+
+A PR is not merge-ready until all applicable checks are green in CI. Where an automated check cannot reasonably cover a behavior, the PR must say so explicitly and identify what *is* verified automatically.
+
+The point: the user must be able to trust a green CI without re-running the feature by hand.
+
+---
+
+## Phase Output Review Rule
+
+Artifacts produced by phases meant for user review — Discovery Summaries, Approach docs, Plans, or any substantive review document — must be **rendered inline in the chat window**, not only saved to a file on disk.
+
+Saving to a file (e.g., under `docs/planning/`) is fine and preferred as the durable artifact. But the doc must also be rendered inline for review. Summaries with links are not acceptable — the full content must be visible in the chat so feedback can happen without context-switching.
+
+After revisions are accepted, the on-disk file is the canonical artifact and the inline rendering can be omitted from subsequent turns.
+
+---
+
 ## Communication Rules
 
 - Do not ask questions unless blocked
